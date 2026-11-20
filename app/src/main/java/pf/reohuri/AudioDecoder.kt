@@ -7,7 +7,8 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
 import java.nio.ByteOrder
-import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.sqrt
 
 /**
  * Extrait la piste audio d'une vidéo (ou d'un fichier audio) et la convertit
@@ -18,11 +19,36 @@ class AudioDecoder(private val context: Context, private val uri: Uri) {
     var durationUs: Long = 0L
         private set
 
+    /**
+     * Mesure le volume du fichier. Sert à remonter
+     * les enregistrements trop faibles avant la reconnaissance.
+     */
+    fun volume(isCancelled: () -> Boolean, onProgress: (Long) -> Unit): Volume {
+        var somme = 0.0
+        var compte = 0L
+        var crete = 0.0
+        decode(isCancelled, onProgress) { pcm, n ->
+            for (i in 0 until n) {
+                val v = pcm[i] / 32768.0
+                somme += v * v
+                if (v > crete) crete = v else if (-v > crete) crete = -v
+            }
+            compte += n
+        }
+        if (compte == 0L || somme == 0.0) return Volume(-90.0, -90.0)
+        return Volume(20 * log10(sqrt(somme / compte)), 20 * log10(crete))
+    }
+
+    /** Volume moyen et pointe la plus forte, en décibels (0 = maximum). */
+    class Volume(val moyen: Double, val crete: Double)
+
     /** @param onPcm reçoit des échantillons 16 kHz mono
-     *  @param onProgress reçoit la position en microsecondes */
+     *  @param onProgress reçoit la position en microsecondes
+     *  @param gain multiplie le volume (1 = inchangé) */
     fun decode(
         isCancelled: () -> Boolean,
         onProgress: (Long) -> Unit,
+        gain: Float = 1f,
         onPcm: (ShortArray, Int) -> Unit
     ) {
         val extractor = MediaExtractor()
@@ -54,7 +80,7 @@ class AudioDecoder(private val context: Context, private val uri: Uri) {
         var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
         var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
         var isFloat = false
-        var resampler = Resampler(sampleRate)
+        var resampler = Resampleur(sampleRate, gain)
 
         val info = MediaCodec.BufferInfo()
         var inputDone = false
@@ -87,7 +113,7 @@ class AudioDecoder(private val context: Context, private val uri: Uri) {
                         channels = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
                         isFloat = of.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
                                 of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
-                        resampler = Resampler(sampleRate)
+                        resampler = Resampleur(sampleRate, gain)
                     }
                     outIdx >= 0 -> {
                         if (info.size > 0) {
@@ -118,7 +144,7 @@ class AudioDecoder(private val context: Context, private val uri: Uri) {
                                     mono[f] = s / channels
                                 }
                             }
-                            resampler.process(mono, mono.size, onPcm)
+                            resampler.traiter(mono, mono.size, onPcm)
                             onProgress(info.presentationTimeUs)
                         }
                         codec.releaseOutputBuffer(outIdx, false)
@@ -132,33 +158,6 @@ class AudioDecoder(private val context: Context, private val uri: Uri) {
             try { codec.stop() } catch (_: Exception) {}
             codec.release()
             extractor.release()
-        }
-    }
-
-    /** Rééchantillonnage linéaire continu vers 16 000 Hz. */
-    private class Resampler(inRate: Int) {
-        private val step = inRate / 16000.0
-        private var t = 0.0
-        private var prev = 0f
-
-        fun process(inp: FloatArray, n: Int, out: (ShortArray, Int) -> Unit) {
-            if (n <= 0) return
-            val res = ShortArray((n / step).toInt() + 4)
-            var k = 0
-            while (t < n - 1 && k < res.size) {
-                val i = floor(t).toInt()
-                val frac = (t - i).toFloat()
-                val a = if (i < 0) prev else inp[i]
-                val b = inp[i + 1]
-                var v = a + (b - a) * frac
-                if (v > 32767f) v = 32767f
-                if (v < -32768f) v = -32768f
-                res[k++] = v.toInt().toShort()
-                t += step
-            }
-            t -= n
-            prev = inp[n - 1]
-            if (k > 0) out(res, k)
         }
     }
 }

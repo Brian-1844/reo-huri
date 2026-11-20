@@ -49,7 +49,26 @@ class Transcriber(private val context: Context, private val modeles: ModelManage
     }
 
     /** Fichier vidéo ou audio -> passages reconnus. progres reçoit 0..100. */
-    fun transcrire(uri: Uri, m: Modele, progres: (Int) -> Unit, surLigne: (String) -> Unit): List<Ligne> {
+    fun transcrire(
+        uri: Uri, m: Modele, progres: (Int) -> Unit, surLigne: (String) -> Unit,
+        surEtape: (String) -> Unit = {}
+    ): List<Ligne> {
+        // 1er passage, rapide : un enregistrement trop faible fait manquer des
+        // paroles au détecteur ; on mesure donc le volume pour le remonter.
+        surEtape("Mesure du volume…")
+        val mesure = AudioDecoder(context, uri)
+        var vu = -1
+        val volume = mesure.volume({ annule }) { us ->
+            val d = mesure.durationUs
+            if (d > 0) {
+                val p = (us * 100 / d).toInt().coerceIn(0, 99)
+                if (p != vu) { vu = p; progres(p) }
+            }
+        }
+        if (annule) return emptyList()
+        val gain = gainPour(volume)
+
+        surEtape("Chargement du moteur…")
         val rec = reconnaisseur(m)
         // Le détecteur de parole découpe le son aux silences
         // (Whisper ne lit que des passages de moins de 30 secondes).
@@ -97,7 +116,8 @@ class Transcriber(private val context: Context, private val modeles: ModelManage
                         val p = (us * 100 / d).toInt().coerceIn(0, 99)
                         if (p != dernier) { dernier = p; progres(p) }
                     }
-                }
+                },
+                gain = gain
             ) { pcm, n ->
                 vad.acceptWaveform(FloatArray(n) { pcm[it] / 32768f })
                 vider()
@@ -108,6 +128,16 @@ class Transcriber(private val context: Context, private val modeles: ModelManage
             rec.release()
         }
         return lignes
+    }
+
+    companion object {
+        /** Gain à appliquer : rien pour un volume normal, jusqu'à ×100 pour un son très faible. */
+        fun gainPour(v: AudioDecoder.Volume): Float {
+            if (v.moyen >= -26.0) return 1f
+            // Vise un volume moyen de -20 dB, sans écrêter les pointes de plus de 6 dB, 40 dB au plus
+            val db = maxOf(0.0, minOf(40.0, -20.0 - v.moyen, 6.0 - v.crete))
+            return Math.pow(10.0, db / 20.0).toFloat()
+        }
     }
 
     /** Modèle local qui ajoute ponctuation et majuscules. Appeler fermer() après usage. */

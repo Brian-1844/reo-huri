@@ -12,9 +12,10 @@
         <item name="android:background">@drawable/btn_contour</item>
         <item name="android:textColor">@color/lagon</item>
         <item name="android:textAllCaps">false</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:paddingStart">12dp</item>
-        <item name="android:paddingEnd">12dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:paddingStart">6dp</item>
+        <item name="android:paddingEnd">6dp</item>
         <item name="android:minWidth">0dp</item>
     </style>
 </resources>

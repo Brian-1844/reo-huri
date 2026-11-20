@@ -28,6 +28,32 @@ def duree(fichier: str) -> float:
         return 0.0
 
 
+def gain_db(fichier: str) -> float:
+    """Décibels à ajouter : 0 pour un volume normal, jusqu'à 40 pour un son très faible.
+
+    Un enregistrement trop faible fait manquer des paroles au détecteur de
+    parole ; on mesure donc le volume moyen (passage rapide) pour le remonter.
+    """
+    try:
+        r = subprocess.run([_ffmpeg(), "-hide_banner", "-nostdin", "-i", fichier, "-vn",
+                            "-af", "volumedetect", "-f", "null", "-"], capture_output=True,
+                           text=True, errors="replace", creationflags=_SANS_FENETRE)
+        m = re.search(r"mean_volume:\s*(-?[\d.]+) dB", r.stderr)
+        c = re.search(r"max_volume:\s*(-?[\d.]+) dB", r.stderr)
+        moyen = float(m.group(1)) if m else -20.0
+        crete = float(c.group(1)) if c else 0.0
+    except Exception:
+        return 0.0
+    return calcul_gain(moyen, crete)
+
+
+def calcul_gain(moyen: float, crete: float) -> float:
+    """Vise un volume moyen de -20 dB, sans écrêter les pointes de plus de 6 dB, 40 dB au plus."""
+    if moyen >= -26.0:
+        return 0.0
+    return max(0.0, min(40.0, -20.0 - moyen, 6.0 - crete))
+
+
 def creer_ponctuation() -> Callable[[str], str]:
     import sherpa_onnx
     m = modeles.PONCTUATION
@@ -70,8 +96,10 @@ def transcrire(fichier: str, m: modeles.Modele,
     vad = sherpa_onnx.VoiceActivityDetector(cfg, buffer_size_in_seconds=60)
 
     total = duree(fichier)
+    gain = gain_db(fichier)
+    filtre = ["-af", f"volume={gain:.1f}dB"] if gain > 0 else []
     proc = subprocess.Popen(
-        [_ffmpeg(), "-nostdin", "-loglevel", "error", "-i", fichier, "-vn",
+        [_ffmpeg(), "-nostdin", "-loglevel", "error", "-i", fichier, "-vn", *filtre,
          "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=_SANS_FENETRE)
     lignes: list[tuple[float, float, str]] = []

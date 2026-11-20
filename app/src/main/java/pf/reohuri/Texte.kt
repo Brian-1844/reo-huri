@@ -11,8 +11,8 @@ object Texte {
 
     private val FIN_PHRASE = Regex("""[.?!…]["'”’)\]]*$""")
     private val BRUIT = Regex("""\[[^\]]*\]|\([^)]*\)|>>+|♪+""")
-    private val BORDS = Regex("""(?U)^[^\w]+|[^\w]+$""")
-    private val QUEUE = Regex("""(?U)[^\w]+$""")
+    private val BORDS = Regex("""^[^\w]+|[^\w]+$""")
+    private val QUEUE = Regex("""[^\w]+$""")
     private val ESPACES = Regex("""\s+""")
     private val TETE = Regex("""^\[(\d{1,2}):(\d{2}):(\d{2})\]\s*""")
 
@@ -203,7 +203,7 @@ object Texte {
     fun appliquerCorrections(texte: String, regles: List<Pair<String, String>>): String {
         var t = texte
         for ((faux, juste) in regles) {
-            val motif = Regex("(?U)(?<!\\w)" + Regex.escape(faux) + "(?!\\w)", RegexOption.IGNORE_CASE)
+            val motif = Regex("(?<!\\w)" + Regex.escape(faux) + "(?!\\w)", RegexOption.IGNORE_CASE)
             t = motif.replace(t) { juste }
         }
         return t

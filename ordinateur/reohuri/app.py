@@ -320,7 +320,7 @@ class App(tk.Tk):
             modeles.telecharger(m, lambda p: self._dire("progres", p))
         modeles.telecharger_vad()
         self._dire("attente")
-        self._dire("etat", "Chargement du moteur…")
+        self._dire("etat", "Mesure du volume et chargement du moteur…")
         self.titre_doc = os.path.splitext(os.path.basename(fichier))[0]
         self.source_doc = "Source : " + os.path.basename(fichier)
         import time

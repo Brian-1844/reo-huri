@@ -211,7 +211,8 @@ class MainActivity : Activity() {
             val message = try {
                 if (video != null) depuisYouTube(video) else depuisFichier(uri!!, t)
             } catch (e: Throwable) {
-                val detail = e.message ?: e.javaClass.simpleName
+                val cause = e.cause ?: e
+                val detail = cause.message ?: cause.javaClass.simpleName
                 if (video != null) "$detail. Astuce : avec le fichier de la vidéo, « Fichier… » marche toujours."
                 else "Erreur : $detail"
             }
@@ -263,7 +264,6 @@ class MainActivity : Activity() {
             modeles.telecharger(m) { avancer(it) }
         }
         modeles.telechargerVad()
-        attente("Chargement du moteur…")
         sourceDoc = "Source : " + (nomDe(uri) ?: "fichier")
         val t0 = System.currentTimeMillis()
         val lignes = t.transcrire(
@@ -273,7 +273,8 @@ class MainActivity : Activity() {
                 val reste = if (p > 2) ecoule * (100 - p) / p else -1
                 avancer(p, "Transcription… $p %" + if (reste >= 0) " · reste environ ${reste / 60} min ${reste % 60} s" else "")
             },
-            surLigne = { ligne -> runOnUiThread { edtTexte.append("$ligne ") } }
+            surLigne = { ligne -> runOnUiThread { edtTexte.append("$ligne ") } },
+            surEtape = { etape -> if (etape.startsWith("Chargement")) attente(etape) else avancer(0, etape) }
         )
         if (lignes.isEmpty()) return if (t.annule) "Arrêté." else "Aucune parole détectée dans ce fichier."
         val nom = m.label.substringBefore(" (").substringAfter("— ")

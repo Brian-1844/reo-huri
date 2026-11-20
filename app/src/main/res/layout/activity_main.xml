@@ -259,7 +259,7 @@
                 android:layout_height="48dp"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1.3"
-                android:text="Corrections" />
+                android:text="Corriger" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
