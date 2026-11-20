@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ReoHuri" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/lagon</item>
+        <item name="android:colorPrimaryDark">@color/lagon_fonce</item>
+        <item name="android:colorAccent">@color/corail</item>
+        <item name="android:statusBarColor">@color/lagon_fonce</item>
+        <item name="android:windowBackground">@color/sable</item>
+    </style>
+
+    <style name="BoutonContour">
+        <item name="android:background">@drawable/btn_contour</item>
+        <item name="android:textColor">@color/lagon</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:minWidth">0dp</item>
+    </style>
+</resources>

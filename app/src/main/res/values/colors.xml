@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lagon">#0E7C86</color>
+    <color name="lagon_fonce">#095760</color>
+    <color name="corail">#F07B5A</color>
+    <color name="sable">#FAF6EF</color>
+    <color name="encre">#1E2A2E</color>
+    <color name="gris">#6B7A7E</color>
+    <color name="blanc">#FFFFFF</color>
+</resources>

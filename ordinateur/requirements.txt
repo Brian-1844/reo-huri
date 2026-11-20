@@ -1,0 +1,4 @@
+sherpa-onnx==2.0.2
+numpy
+imageio-ffmpeg
+youtube-transcript-api
